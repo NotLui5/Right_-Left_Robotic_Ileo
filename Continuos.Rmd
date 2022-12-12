@@ -157,7 +157,7 @@ plotmd_single_studies <- function(words, numbers,
 <summary><b>Figure A -</b> Blood Loss (mL), Legnth of Hospital Stay (days) and Operative Time (min)</summary>
 
 <br>
-```{r overall_graph_REML, echo=FALSE, fig.height = 9.9, fig.width = 15.5}
+```{r overall_graph_REML, echo=FALSE, message=FALSE, warning=FALSE, fig.height = 9.9, fig.width = 15.5}
 robotic_cont <- read.csv("data_extraction_continous.csv")
 names(robotic_cont)[2] <- "author"
 names(robotic_cont)[8] <- "n2"

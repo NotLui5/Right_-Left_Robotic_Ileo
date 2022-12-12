@@ -1,4 +1,4 @@
-Hepatectomy: Right vs Left
+Hepatectomy: Right vs Left Robotic
 ================
 Oscar J. Ponce, Eddy Lincango & Luis A. Figueroa
 
@@ -21,19 +21,6 @@ Right robotic vs Left robotic Mean Difference (MD) 95%CI
 Operative Time (min)
 </summary>
 
-<br>
-
-    ## New names:
-    ## New names:
-    ## New names:
-    ## • `` -> `...1`
-    ## • `` -> `...2`
-    ## • `` -> `...3`
-    ## • `` -> `...4`
-    ## • `` -> `...5`
-    ## • `` -> `...6`
-    ## • `` -> `...7`
-
-![](Cont%20Output%20Figures/overall_graph_REML-1.svg)<!-- -->
+<br> ![](Cont%20Output%20Figures/overall_graph_REML-1.svg)<!-- -->
 
 </details>
