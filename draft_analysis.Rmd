@@ -1,0 +1,511 @@
+---
+title: "Hepatectomy"
+author: "Oscar J. Ponce, Eddy Lincango & Luis A. Figueroa"
+date: "18/11/2020"
+update: "11/12/2022"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(dpi=900)
+knitr::opts_chunk$set(dev='pdf')
+
+library(metafor)
+library(tidyverse)
+library(forestplot)
+library(rmarkdown)
+
+```
+
+
+
+```{r functions_md_or, echo=FALSE, message=FALSE, warning=FALSE}
+md <- function(database){
+  
+  db <- database
+  db <- escalc(measure="MD", 
+               m1i=mean_post1, m2i = mean_post2, 
+               sd1i  = sd_post1, sd2i = sd_post2, 
+               n1i = n1, n2i= n2, data=database)
+  db$vi <- ifelse(is.na(db$vi), 
+               ((db$mdul_post-db$mdll_post)/((2*abs(qt(0.05/2, db$total-1)))^2)), db$vi)
+  db <- db[order(db$yi),]
+  db <- summary(db)
+  
+  db$md <- paste(formatC(db$yi, format='f', digits =1)," ",
+                 "(",formatC(db$ci.lb, format='f', digits =1),
+                 ",",formatC(db$ci.ub, format='f', digits=1),")") 
+  db$postmean1 <- paste(formatC(db$mean_post1, format='f', digits=1),'(', formatC(db$sd_post1, format='f', digits=1),')')
+  db$postmean2 <- paste(formatC(db$mean_post2, format='f', digits=1),'(', formatC(db$sd_post2, format='f', digits=1),')')
+  
+  ma <- rma(yi, vi, measure='MD', data=db, method='REML')
+  
+  db$w <- paste(formatC(weights(ma), format='f', digits = 1),'%')
+  db$weights <- weights(ma)
+  
+  list(pre = db, ma = ma)
+}
+
+
+table_md <- function(analysis, nstudies, int, comp, outcome, col, 
+                     follow=FALSE){
+   ifelse(nstudies>1,
+        (b <- cbind( 
+          c("Author", analysis$pre$author, 
+            paste("Overall Mean Difference for", analysis$ma$k, "studies"),
+            paste("(Tau^2 = ", (formatC(analysis$ma$tau2, digits=2, format="f")), ", df = ", 
+                  (analysis$ma$k - analysis$ma$p),
+                  ", p ", (ifelse(analysis$ma$QEp < 0.001, 
+                                  paste("< 0.001"),
+                                  paste("= ", formatC(analysis$ma$QEp, digits=3, format="f")))),
+                  "; ", "I^2", " = ", (formatC(analysis$ma$I2, digits=1, format="f")), "%)")),
+        c(paste(int), analysis$pre$n1, sum(analysis$pre$n1),NA),
+        c(paste(outcome, '\n', col), analysis$pre$postmean1, NA, NA),
+        c(paste(comp), analysis$pre$n2,sum(analysis$pre$n2), NA),
+        c(paste(outcome, '\n', col), analysis$pre$postmean2, NA, NA),
+        c("Mean Difference (95% CI)", analysis$pre$md, 
+            paste(formatC(analysis$ma$b, format='f', digits =1), 
+                  " (",formatC(analysis$ma$ci.lb, format='f', digits=1),
+                  ",", formatC(analysis$ma$ci.ub, format='f', digits=1), ")"), NA),
+        c("Weight (%)", analysis$pre$w, NA, NA))),
+        (b <- cbind( 
+        c("Author", analysis$pre$author),
+        c(paste(int), analysis$pre$n1),
+        c(paste(outcome,'\n', col), analysis$pre$postmean1),
+        c(paste(comp), analysis$pre$n2),
+        c(paste(outcome, '\n',col), analysis$pre$postmean2),
+        c("Mean Difference (95% CI)", analysis$pre$md))))
+
+  ifelse(follow==TRUE, 
+          b <- cbind(b, c(paste('Follow-up'), analysis$pre$followup, NA)), NA)
+  ifelse(follow==TRUE,
+          b <- b[,c(1,ncol(b),2:(ncol(b)-1))], NA)
+  
+  
+  b <- as_tibble(b) 
+  b <- b %>% add_row(.before = 2)
+  b <- b %>% add_row(.before = 2)
+  b <- b %>% add_row(.after = nrow(b))
+  
+  ifelse(nstudies>1, b <- b %>% add_row(.before = nrow(b)-2), NA)
+
+  
+  ifelse(nstudies > 1,
+        (c <- structure(list(
+          mean = c(rep(NA, 3), analysis$pre$yi, NA, analysis$ma$b,NA, NA),
+          lower = c(rep(NA, 3), analysis$pre$ci.lb, NA, analysis$ma$ci.lb, NA, NA),
+          upper = c(rep(NA, 3), analysis$pre$ci.ub, NA, analysis$ma$ci.ub, NA, NA)),
+          .Names = c("mean", "lower", "upper"),
+          row.names = c(NA, -1L*nrow(b)),
+          class = "data.frame")),
+        (c <- structure(list(
+          mean = c(rep(NA, 3), analysis$pre$yi, NA),
+          lower = c(rep(NA, 3), analysis$pre$ci.lb, NA),
+          upper = c(rep(NA, 3), analysis$pre$ci.ub, NA)),
+          .Names = c("mean", "lower", "upper"),
+          row.names = c(NA, -1L*nrow(b)),
+          class = "data.frame")))
+
+  c <- as_tibble(c)
+  
+  list(b = b, c = c)
+} 
+
+
+
+
+plotmd_single_studies <- function(words, numbers,  
+                                  xtick, sizes, bolding, aligning, fpPosition) {
+
+  (forestplot(words,
+             graph.pos = fpPosition,
+             zero = 0,
+             numbers,
+             new_page = TRUE,
+             colgap = unit(5, "mm"),
+             hrzl_lines = list('3' = gpar (lwd=1, columns=c(1:(ncol(words)+1)), col="black")),
+             lineheight=unit(0.7,'cm'),
+             boxsize = sizes,
+             line.margin = 2,
+             is.summary = bolding,
+             align = aligning,
+             ci.vertices = TRUE,
+             txt_gp = fpTxtGp(label =gpar (cex=0.9), 
+                              ticks = gpar(cex = 0.9, fontface="bold"),
+                              summary = gpar(cex = 0.9),
+                              xlab = gpar(cex=0.9)),
+             xticks = xtick,
+             xlog=FALSE,
+             clip = c(0,1),
+             grid = xtick,
+             lwd.xaxis = 1,
+             lwd.ci = 2.2,
+             lwd.zero = 1.5,
+             graphwidth = unit(10,"cm"),
+             col=fpColors(box="black",line="grey", zero = 'dodgerblue4', axes="grey20", summary="black")))
+ 
+}
+
+
+
+
+or <- function(database){
+  db <- database
+  db <- escalc(measure="OR", ai=e1, ci=e2, n1i=n1, n2i=n2,data=database)
+  db <- db[order(db$yi),]
+  db <- summary(db)
+  
+  db$est <-  exp(db$yi)
+  db$ci.lb <- exp(db$ci.lb)
+  db$ci.ub <- exp(db$ci.ub)
+  
+  
+  db$rate1 <- paste(db$e1,"/",db$n1)
+  db$rate2 <- paste(db$e2,"/",db$n2)
+  db$or <- paste(formatC(db$est, format='f', digits =2)," ",
+                 "(",formatC(db$ci.lb, format='f', digits =2),
+                 "-",formatC(db$ci.ub, format='f', digits=2),")")  
+  
+  ma <- rma(db$yi, db$vi, measure='OR', data=db, method='REML')
+  exp <- predict(ma, transf = transf.exp.int)
+  
+  db$weights <- weights(ma)
+  db$w <- paste(formatC(db$weights, format='f', digits = 1),'%')
+  
+  
+  list(pre = db, ma = ma, exp = exp)
+}
+
+
+
+table_or <- function(analysis, int, comp, outcome, nstudies){
+  ifelse(nstudies>1,
+  b <- cbind( 
+    c("Author", analysis$pre$author, 
+      paste("Overall Odds Ratio for", analysis$ma$k, "studies"),
+      paste("(Tau^2 = ", (formatC(analysis$ma$tau2, digits=2, format="f")), ", df = ", 
+            (analysis$ma$k - analysis$ma$p),
+            ", p ", (ifelse(analysis$ma$QEp < 0.001, 
+                            paste("< 0.001"),
+                            paste("= ", formatC(analysis$ma$QEp, digits=3, format="f")))),
+            "; ", "I^2", " = ", (formatC(analysis$ma$I2, digits=1, format="f")), "%)")),
+    c(paste(int, '\n', outcome,'/','total n'),
+      analysis$pre$rate1, paste(sum(analysis$pre$e1), " / ", sum(analysis$pre$n1)), NA),
+    c(paste(comp, '\n', outcome,'/', 'total n'),
+      analysis$pre$rate2, paste(sum(analysis$pre$e2), " / ", sum(analysis$pre$n2)), NA),
+    c("Odds Ratio (95% CI)", analysis$pre$or, 
+      paste(formatC(analysis$exp$pred, format='f', digits =2), 
+            " (",formatC(analysis$exp$ci.lb, format='f', digits=2),
+            "-", formatC(analysis$exp$ci.ub, format='f', digits=2), ")"), NA),
+    c("Weight(%)", paste(formatC(weights(analysis$ma), format='f', digits = 1),'%'), NA, NA)),
+       b <- cbind( 
+        c("Author", analysis$pre$author),
+        c(paste(int, '\n', outcome,'/','total n'),analysis$pre$rate1),
+        c(paste(comp, '\n', outcome,'/', 'total n'),analysis$pre$rate2),
+        c("Odds Ratio (95% CI)", analysis$pre$or)))
+  
+  b <- as_tibble(b, .name_repair = "unique")
+  b <- b %>% add_row(.before = 2)
+  b <- b %>% add_row(.before = 2)
+  b <- b %>% add_row(.after = nrow(b))  
+  
+  ifelse(nstudies>1, b <- b %>% add_row(.before = nrow(b)-2), NA)
+
+  
+  ifelse(nstudies > 1,
+        (c <- structure(list(
+          mean = c(rep(NA, 3), analysis$pre$est, NA, analysis$exp$pred,NA, NA),
+          lower = c(rep(NA, 3), analysis$pre$ci.lb, NA, analysis$exp$ci.lb, NA, NA),
+          upper = c(rep(NA, 3), analysis$pre$ci.ub, NA, analysis$exp$ci.ub, NA, NA)),
+          .Names = c("mean", "lower", "upper"),
+          row.names = c(NA, -1L*nrow(b)),
+          class = "data.frame")),
+        (c <- structure(list(
+          mean = c(rep(NA, 3), analysis$pre$est, NA, NA),
+          lower = c(rep(NA, 3), analysis$pre$ci.lb, NA, NA),
+          upper = c(rep(NA, 3), analysis$pre$ci.ub, NA, NA)),
+          .Names = c("mean", "lower", "upper"),
+          row.names = c(NA, -1L*nrow(b)),
+          class = "data.frame")))
+
+  c <- as_tibble(c)
+  
+  list(b = b, c = c)
+} 
+  
+
+plotor_single_studies <- function(words, numbers, xtick, sizes, 
+                                  bolding, aligning, fpPosition){
+  
+  forestplot(words,
+             graph.pos = fpPosition,
+             zero = 1,
+             numbers,
+             new_page = TRUE,
+             colgap = unit(5, "mm"),
+             hrzl_lines = list("3" = gpar (lwd=1, columns=c(1:(ncol(words)+1)), col="black")),
+             lineheight=unit(0.7,'cm'),
+             boxsize = sizes,
+             line.margin = 2,
+             is.summary = bolding,
+             align = aligning,
+             ci.vertices = TRUE,
+             txt_gp = fpTxtGp(label =gpar (cex=0.9), 
+                              ticks = gpar(cex = 0.9, fontface="bold"),
+                              summary = gpar(cex = 0.9),
+                              xlab = gpar(cex=0.9)),
+             xticks = xtick,
+             xlog=TRUE,
+             clip = c(0.2, 32),
+             grid = xtick,
+             lwd.xaxis = 1,
+             lwd.ci = 2.2,
+             lwd.zero = 2,
+             graphwidth = unit(10,"cm"),
+             col=fpColors(box="black",line="grey", zero = 'dodgerblue4', axes="grey20", summary="black"))
+  
+  
+}  
+```
+
+
+
+```{r continuous_analysis, echo=FALSE, message=FALSE, warning=FALSE}
+robotic_cont <- read.csv("data_extraction_continous.csv")
+names(robotic_cont)[2] <- "author"
+names(robotic_cont)[10] <- "mean_post2" #Change for control group
+names(robotic_cont)[12] <- "sd_post2"   #Change for control group
+names(robotic_cont)[13] <- "mean_post1" #Change for intervention group
+names(robotic_cont)[15] <- "sd_post1"   #Change for intervention group
+
+
+#Blood loss
+bl <- subset(robotic_cont, outcome=='blood loss')
+bl_md <- md(bl)
+tbl_md <- table_md(analysis = bl_md, nstudies = 2, 
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
+                    outcome = 'Total blood loss (bl)', col = 'Mean (SD)', 
+                    follow = FALSE)
+
+#Operative time
+ot <- subset(robotic_cont, outcome=='Operative time')
+ot_md <- md(ot)
+tot_md <- table_md(analysis = ot_md, nstudies = 2, 
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
+                    outcome = 'Operative time (min)', col = 'Mean (SD)', 
+                    follow = FALSE)
+
+#length of hospital stay
+los <- subset(robotic_cont, outcome=='length of hospital stay')
+los_md <- md(los)
+tlos_md <- table_md(analysis = los_md, nstudies = 8, 
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
+                    outcome = 'Length of Hospital stay (min)', col = 'Mean (SD)', 
+                    follow = FALSE)
+
+```
+
+
+```{r cont_graphs, echo=FALSE, fig.height=10, fig.width=16, message=FALSE, warning=FALSE}
+title <- c('', paste0('Right robotic (N)'), "mean (SD)",
+            paste0('Left robotic (N)'), "mean (SD)",
+            paste0('Mean Difference (MD) 95%CI'), 
+            paste0('Weights'))
+  
+
+sub_cont1 <- c('Blood Loss (mL)', rep(NA, 6))
+sub_cont2 <- c('Legnth of Hospital Stay (days)', rep(NA, 6))
+sub_cont3 <- c('Operative Time (min)', rep(NA, 6))
+
+
+subtotal2 <- rbind(title, NA,
+                   sub_cont1, tbl_md$b[-c(1:3, nrow(tbl_md$b)-3),], NA,
+                   sub_cont2, tlos_md$b[-c(1:3, nrow(tlos_md$b)-3),], NA,
+                   sub_cont3, tot_md$b[-c(1:3, nrow(tot_md$b)-3),])
+subtotal2 <- as.matrix(subtotal2) #Sol: Error in assertAndRetrieveTidyValue(x, lower) : 
+#You have not provided an argument and the data frame does not have a 'lower' column: V1, V2, V3, V4, V5, V6, V7
+
+subtotal2_summary <- c(T, F, 
+                           T, rep(F, nrow(tbl_md$b[-c(1:3, nrow(tbl_md$b)-3),])-3),T,T,F,F,
+                           T, rep(F, nrow(tlos_md$b[-c(1:3, nrow(tlos_md$b)-3),])-3), T, T,F,F,
+                           T, rep(F, nrow(tot_md$b[-c(1:3, nrow(tot_md$b)-3),])-3), T, T,F)
+
+sizes_cont <- c(rep(NA,3), 0.006*(bl_md$pre$weights),1,
+                rep(NA, 4), 0.03*(los_md$pre$weights),1,
+                rep(NA, 4), 0.05*(ot_md$pre$weights),1,
+                rep(NA, 2))
+
+subtotal2n <- rbind(NA,NA,
+                    NA, tbl_md$c[-c(1:3, nrow(tbl_md$c)-3),], NA,
+                   NA, tlos_md$c[-c(1:3, nrow(tlos_md$c)-3),], NA,
+                   NA, tot_md$c[-c(1:3, nrow(tot_md$c)-3),])
+
+
+
+plot <- forestplot(subtotal2,
+             graph.pos = 6,
+             zero = 0,
+             subtotal2n,
+             new_page = TRUE,
+             colgap = unit(5, "mm"),
+             hrzl_lines = list("2" = gpar (lwd=1, columns=1:8, col="black")),
+             lineheight=unit(0.7,'cm'),
+             boxsize = sizes_cont,
+             line.margin = 2,
+             is.summary = subtotal2_summary,
+             align = c('l', rep('c', 4), 'l', 'l'),
+             ci.vertices = TRUE,
+             txt_gp = fpTxtGp(label =gpar (cex=0.9), 
+                              ticks = gpar(cex = 0.9, fontface="bold"),
+                              summary = gpar(cex = 0.9),
+                              xlab = gpar(cex=0.9)),
+             xticks = c(-90,-45,0,30,50),
+             xlog=FALSE,
+             clip = c(-90,-45,30,50),
+             grid = c(-90,-45,0,30,50),
+             lwd.xaxis = 1,
+             lwd.ci = 2.2,
+             lwd.zero = 2,
+             graphwidth = unit(8,"cm"),
+             col=fpColors(box="black",line="grey", zero = 'dodgerblue4', axes="grey20", summary="black"))
+  
+```
+
+
+```{r dichotomous_analysis, echo=FALSE, message=FALSE, warning=FALSE}
+robotic_dic <- read.csv("data_extraction_dicotomica.csv")
+names(robotic_dic)[2] <- "author"
+names(robotic_dic)[10] <- "e2"
+names(robotic_dic)[11] <- "e1"
+
+
+#Anastomotic leak
+leak <- subset(robotic_dic, outcome=='Anastomotic leak')
+leak <- leak[-1,]
+leak_or <- or(leak)
+tt_leak <- table_or(analysis = leak_or, nstudies = 3, 
+                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    outcome = 'Anastomotic Leak')
+
+#Conversion operation
+conversion <- subset(robotic_dic, outcome=='Conversion operation')
+conv_or <- or(conversion)
+tt_conv <- table_or(analysis = conv_or, nstudies = 5, 
+                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    outcome = 'Conversion Operation')
+
+#Ileus
+ileus <- subset(robotic_dic, outcome=='Ileus')
+ileus_or <- or(ileus)
+tt_ileus <- table_or(analysis = ileus_or, nstudies = 4, 
+                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    outcome = 'Ileus')
+
+
+#Readmission
+readm <- subset(robotic_dic, outcome=='readmission')
+readm <- readm[-1,]
+readm_or <- or(readm)
+tt_readm <- table_or(analysis = readm_or, nstudies = 4, 
+                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    outcome = 'Readmission')
+
+#Reoperation
+resop <- subset(robotic_dic, outcome=='reoperation')
+resop_or <- or(resop)
+tt_resop <- table_or(analysis = resop_or, nstudies = 2, 
+                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    outcome = 'Readmission')
+
+#wound infection
+w_inf <- subset(robotic_dic, outcome=='wound infection')
+w_inf_or <- or(w_inf)
+tt_w_inf <- table_or(analysis = w_inf_or, nstudies = 4, 
+                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    outcome = 'Wound Infection')
+
+```
+
+
+
+```{r dic_graphs, echo=FALSE, fig.height=14, fig.width=14, message=FALSE, warning=FALSE}
+title1 <- c('', paste0('Left robotic (n/N)'),
+            paste0('Right robotic (n/N)'),
+            paste0('Odds Ratio (OR) 95%CI'), 
+            paste0('Weights'))
+  
+
+sub_dic1 <- c('Ileus', rep(NA, 4))
+sub_dic2 <- c('Conversion Operation', rep(NA, 4))
+sub_dic3 <- c('Anastomotic Leak', rep(NA, 4))
+sub_dic4 <- c('Reoperation', rep(NA, 4))
+sub_dic5 <- c('Wound infection', rep(NA, 4))
+sub_dic6 <- c('Readmission', rep(NA, 4))
+
+
+subtotal1 <- rbind(title1, NA,
+                   sub_dic1, tt_ileus$b[-c(1:3, nrow(tt_ileus$b)-3),], NA,
+                   sub_dic2, tt_conv$b[-c(1:3, nrow(tt_conv$b)-3),], NA,
+                   sub_dic3, tt_leak$b[-c(1:3, nrow(tt_leak$b)-3),], NA,
+                   sub_dic4, tt_resop$b[-c(1:3, nrow(tt_resop$b)-3),], NA,
+                   sub_dic5, tt_w_inf$b[-c(1:3, nrow(tt_w_inf$b)-3),], NA,
+                   sub_dic6, tt_readm$b[-c(1:3, nrow(tt_readm$b)-3),])
+
+
+sizes_dic <- c(rep(NA,3), 0.008*(ileus_or$pre$weights),1,
+                rep(NA, 4), 0.02*(conv_or$pre$weights),1,
+                rep(NA, 4), 0.008*(leak_or$pre$weights),1,
+                rep(NA, 4), 0.008*(resop_or$pre$weights),1,
+                rep(NA, 4), 0.008*(w_inf_or$pre$weights),1,
+                rep(NA, 4), 0.008*(readm_or$pre$weights),1, NA, NA)
+              
+subtotal1_summary <- c(T, F, 
+                           T, rep(F, nrow(tt_ileus$b[-c(1:3, nrow(tt_ileus$b)-3),])-3),T,T,F,F,
+                           T, rep(F, nrow(tt_conv$b[-c(1:3, nrow(tt_conv$b)-3),])-3), T, T,F,F,
+                           T, rep(F, nrow(tt_leak$b[-c(1:3, nrow(tt_leak$b)-3),])-3), T, T,F,F,
+                           T, rep(F, nrow(tt_resop$b[-c(1:3, nrow(tt_resop$b)-3),])-3),T,T, F,F,
+                           T, rep(F, nrow(tt_w_inf$b[-c(1:3, nrow(tt_w_inf$b)-3),])-3),T,T, F,F,
+                           T, rep(F, nrow(tt_readm$b[-c(1:3, nrow(tt_readm$b)-3),])-3),T,T, F)
+                           
+
+subtotal1n <- rbind(NA,NA,
+                    NA, tt_ileus$c[-c(1:3, nrow(tt_ileus$c)-3),], NA,
+                   NA, tt_conv$c[-c(1:3, nrow(tt_conv$c)-3),], NA,
+                   NA, tt_leak$c[-c(1:3, nrow(tt_leak$c)-3),], NA,
+                   NA, tt_resop$c[-c(1:3, nrow(tt_resop$c)-3),], NA,
+                   NA, tt_w_inf$c[-c(1:3, nrow(tt_w_inf$c)-3),], NA,
+                   NA, tt_readm$c[-c(1:3, nrow(tt_readm$c)-3),])
+
+
+
+plot<- forestplot(subtotal1,
+             graph.pos = 4,
+             zero = 1,
+             subtotal1n,
+             new_page = TRUE,
+             colgap = unit(5, "mm"),
+             hrzl_lines = list("2" = gpar (lwd=1, columns=1:6, col="black")),
+             lineheight=unit(0.7,'cm'),
+             boxsize = sizes_dic,
+             line.margin = 2,
+             is.summary = subtotal1_summary,
+             align = c('l', rep('c', 2), 'l', 'l'),
+             ci.vertices = TRUE,
+             txt_gp = fpTxtGp(label =gpar (cex=0.9), 
+                              ticks = gpar(cex = 0.9, fontface="bold"),
+                              summary = gpar(cex = 0.9),
+                              xlab = gpar(cex=0.9)),
+             xticks = c(0.1,0.25, 0.50, 1, 2,4, 10),
+             xlog=TRUE,
+             clip = c(0.2, 10),
+             grid = c(0.1,0.25, 0.50,  2,4,10),
+             lwd.xaxis = 1,
+             lwd.ci = 2.2,
+             lwd.zero = 2,
+             graphwidth = unit(10,"cm"),
+             col=fpColors(box="black",line="grey", zero = 'dodgerblue4', axes="grey20", summary="black"))
+  
+  
+
+```
+
