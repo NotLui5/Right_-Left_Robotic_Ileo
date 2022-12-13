@@ -1,20 +1,20 @@
 ---
-title: "Hepatectomy"
+title: "Hepatectomy: Right vs Left Robotic"
 author: "Oscar J. Ponce, Eddy Lincango & Luis A. Figueroa"
-date: "18/11/2020"
-update: "11/12/2022"
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = paste0(dirname(inputFile),'/README.md')) })
 output: github_document
 ---
+<i> Analysis and visualization developed by [Oscar J. Ponce](https://twitter.com/PonceOJ), [Eddy Lincango](https://twitter.com/DoctorEddyMD) and [Luis A. Figueroa](https://twitter.com/LuisFig1706) </i>
+
+The purpose of this site is to make our meta-analysis as transparent as possible. All information or documents used, from the protocol to the final publication, will be available here. If further information is needed, please do not hesitate to contact us.
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(dpi=900)
-knitr::opts_chunk$set(dev='pdf')
-
 library(metafor)
 library(tidyverse)
 library(forestplot)
 library(rmarkdown)
 
+knitr::opts_chunk$set(fig.path = "Cont Output Figures/", dev='svg')
 ```
 
 
@@ -269,10 +269,19 @@ plotor_single_studies <- function(words, numbers, xtick, sizes,
 ```
 
 
+<h2>Right robotic vs Left robotic Continuos analysis: Mean Difference (MD) 95%CI</h2>
 
-```{r continuous_analysis, echo=FALSE, message=FALSE, warning=FALSE}
+
+<details>
+
+<summary><b>Figure A -</b> Blood Loss (mL), Legnth of Hospital Stay (days) and Operative Time (min)</summary>
+
+<br>
+```{r overall_graph_REML, echo=FALSE, message=FALSE, warning=FALSE, fig.height = 9.9, fig.width = 15.5}
 robotic_cont <- read.csv("data_extraction_continous.csv")
 names(robotic_cont)[2] <- "author"
+names(robotic_cont)[8] <- "n2"
+names(robotic_cont)[9] <- "n1"
 names(robotic_cont)[10] <- "mean_post2" #Change for control group
 names(robotic_cont)[12] <- "sd_post2"   #Change for control group
 names(robotic_cont)[13] <- "mean_post1" #Change for intervention group
@@ -286,6 +295,7 @@ tbl_md <- table_md(analysis = bl_md, nstudies = 2,
                     int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Total blood loss (bl)', col = 'Mean (SD)', 
                     follow = FALSE)
+
 
 #Operative time
 ot <- subset(robotic_cont, outcome=='Operative time')
@@ -303,10 +313,7 @@ tlos_md <- table_md(analysis = los_md, nstudies = 8,
                     outcome = 'Length of Hospital stay (min)', col = 'Mean (SD)', 
                     follow = FALSE)
 
-```
 
-
-```{r cont_graphs, echo=FALSE, fig.height=10, fig.width=16, message=FALSE, warning=FALSE}
 title <- c('', paste0('Right robotic (N)'), "mean (SD)",
             paste0('Left robotic (N)'), "mean (SD)",
             paste0('Mean Difference (MD) 95%CI'), 
@@ -341,7 +348,6 @@ subtotal2n <- rbind(NA,NA,
                    NA, tot_md$c[-c(1:3, nrow(tot_md$c)-3),])
 
 
-
 plot <- forestplot(subtotal2,
              graph.pos = 6,
              zero = 0,
@@ -368,37 +374,41 @@ plot <- forestplot(subtotal2,
              lwd.zero = 2,
              graphwidth = unit(8,"cm"),
              col=fpColors(box="black",line="grey", zero = 'dodgerblue4', axes="grey20", summary="black"))
-  
+
+plot
+
 ```
 
+</details>
 
 ```{r dichotomous_analysis, echo=FALSE, message=FALSE, warning=FALSE}
 robotic_dic <- read.csv("data_extraction_dicotomica.csv")
 names(robotic_dic)[2] <- "author"
-names(robotic_dic)[10] <- "e2"
-names(robotic_dic)[11] <- "e1"
-
+names(robotic_dic)[10] <- "e2" #Changed for Author's decisition
+names(robotic_dic)[11] <- "e1" #Changed for Author's decisition
+names(robotic_dic)[8] <- "n2" #Changed for Author's decisition
+names(robotic_dic)[9] <- "n1" #Changed for Author's decisition
 
 #Anastomotic leak
 leak <- subset(robotic_dic, outcome=='Anastomotic leak')
 leak <- leak[-1,]
 leak_or <- or(leak)
 tt_leak <- table_or(analysis = leak_or, nstudies = 3, 
-                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Anastomotic Leak')
 
 #Conversion operation
 conversion <- subset(robotic_dic, outcome=='Conversion operation')
 conv_or <- or(conversion)
 tt_conv <- table_or(analysis = conv_or, nstudies = 5, 
-                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Conversion Operation')
 
 #Ileus
 ileus <- subset(robotic_dic, outcome=='Ileus')
 ileus_or <- or(ileus)
 tt_ileus <- table_or(analysis = ileus_or, nstudies = 4, 
-                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Ileus')
 
 
@@ -407,30 +417,38 @@ readm <- subset(robotic_dic, outcome=='readmission')
 readm <- readm[-1,]
 readm_or <- or(readm)
 tt_readm <- table_or(analysis = readm_or, nstudies = 4, 
-                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Readmission')
 
 #Reoperation
 resop <- subset(robotic_dic, outcome=='reoperation')
 resop_or <- or(resop)
 tt_resop <- table_or(analysis = resop_or, nstudies = 2, 
-                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Readmission')
 
 #wound infection
 w_inf <- subset(robotic_dic, outcome=='wound infection')
 w_inf_or <- or(w_inf)
 tt_w_inf <- table_or(analysis = w_inf_or, nstudies = 4, 
-                    int = "Left robotic (n)", comp = "Right robotic (n)",
+                    int = "Right robotic (n)", comp = "Left robotic (n)",
                     outcome = 'Wound Infection')
 
 ```
 
 
 
+<h2>Right robotic vs Left robotic Dichotomous analysis: Odds Ratio (OR) 95%CI</h2>
+
+
+<details>
+
+<summary><b>Figure B -</b> Ileus, Conversion Operation, Anastomotic Leak, Reoperation. Wound infection, Readmission</summary>
+
+<br>
 ```{r dic_graphs, echo=FALSE, fig.height=14, fig.width=14, message=FALSE, warning=FALSE}
-title1 <- c('', paste0('Left robotic (n/N)'),
-            paste0('Right robotic (n/N)'),
+title1 <- c('', paste0('Right robotic (n/N)'),
+            paste0('Left robotic (n/N)'),
             paste0('Odds Ratio (OR) 95%CI'), 
             paste0('Weights'))
   
@@ -450,7 +468,7 @@ subtotal1 <- rbind(title1, NA,
                    sub_dic4, tt_resop$b[-c(1:3, nrow(tt_resop$b)-3),], NA,
                    sub_dic5, tt_w_inf$b[-c(1:3, nrow(tt_w_inf$b)-3),], NA,
                    sub_dic6, tt_readm$b[-c(1:3, nrow(tt_readm$b)-3),])
-
+subtotal1 <- as.matrix(subtotal1)
 
 sizes_dic <- c(rep(NA,3), 0.008*(ileus_or$pre$weights),1,
                 rep(NA, 4), 0.02*(conv_or$pre$weights),1,
@@ -478,7 +496,7 @@ subtotal1n <- rbind(NA,NA,
 
 
 
-plot<- forestplot(subtotal1,
+plot1 <- forestplot(subtotal1,
              graph.pos = 4,
              zero = 1,
              subtotal1n,
@@ -504,8 +522,10 @@ plot<- forestplot(subtotal1,
              lwd.zero = 2,
              graphwidth = unit(10,"cm"),
              col=fpColors(box="black",line="grey", zero = 'dodgerblue4', axes="grey20", summary="black"))
-  
-  
+
+plot1
 
 ```
+
+</details>
 

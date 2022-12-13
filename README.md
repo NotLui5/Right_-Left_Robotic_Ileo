@@ -13,7 +13,8 @@ final publication, will be available here. If further information is
 needed, please do not hesitate to contact us.
 
 <h2>
-Right robotic vs Left robotic Mean Difference (MD) 95%CI
+Right robotic vs Left robotic Continuos analysis: Mean Difference (MD)
+95%CI
 </h2>
 <details>
 <summary>
@@ -22,5 +23,18 @@ Operative Time (min)
 </summary>
 
 <br> ![](Cont%20Output%20Figures/overall_graph_REML-1.svg)<!-- -->
+
+</details>
+<h2>
+Right robotic vs Left robotic Dichotomous analysis: Odds Ratio (OR)
+95%CI
+</h2>
+<details>
+<summary>
+<b>Figure B -</b> Ileus, Conversion Operation, Anastomotic Leak,
+Reoperation. Wound infection, Readmission
+</summary>
+
+<br> ![](Cont%20Output%20Figures/dic_graphs-1.svg)<!-- -->
 
 </details>
