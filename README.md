@@ -4,7 +4,8 @@ Oscar J. Ponce, Eddy Lincango & Luis A. Figueroa
 
 <i> Analysis and visualization developed by [Oscar J.
 Ponce](https://twitter.com/PonceOJ), [Eddy
-Lincango](https://twitter.com/DoctorEddyMD) and [Luis A.
+Lincango](https://twitter.com/DoctorEddyMD), [Paola SolíS
+Pazmiño](https://twitter.com/paosolpaz18) and [Luis A.
 Figueroa](https://twitter.com/LuisFig1706) </i>
 
 The purpose of this site is to make our meta-analysis as transparent as
